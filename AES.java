@@ -1,4 +1,6 @@
-package csec2012;
+import AES;
+import AES.SBox;
+
 /*
  * AES implementation. 
  * CS 4153: Computer Security
@@ -64,22 +66,38 @@ public class AES {
 			{(byte)0xa0,(byte)0xe0,0x3b,0x4d,(byte)0xae,0x2a,(byte)0xf5,(byte)0xb0,(byte)0xc8,(byte)0xeb,(byte)0xbb,0x3c,(byte)0x83,0x53,(byte)0x99,0x61},
 			{0x17,0x2b,0x04,0x7e,(byte)0xba,0x77,(byte)0xd6,0x26,(byte)0xe1,0x69,0x14,0x63,0x55,0x21,0x0c,0x7d}
 		};
-		/*Performs Substitution on plaintext*/
+		/*
+		 * Performs Substitution on plaintext
+		 * 
+		 * @param	b	The byte that is substituted. 
+		 * @return		The value that substitutes b. 
+		 */
 		public static byte sub (int b) {
 			b &= 0x000000ff;
 			return SBOX_[b >> 4][b & 0x0f];
 		}
-		/*Inverts Substitution of plaintext*/
+		/*
+		 * Inverts Substitution of plaintext
+		 * 
+		 * @param	b	The byte that is inverse-substituted. 
+		 * @return		The inverse substitution of b. 
+		 */
 		public static byte invert (int b) {
 			b &= 0x000000ff;
 			return INV_SBOX_[b >> 4][b & 0x0f];
 		}
 	}
-	/*Constructor*/
+	/*
+	 * Constructor. 
+	 * 
+	 * @param	key	The key used for encrypting the plaintext. 
+	 */
 	public AES (byte[] key) {
 		/*Build rcon table*/
 		rcon = new byte[256][WORD];
 		/*
+		 * Populate rcon Table: 
+		 * 
 		 * This initial value (0x8d) makes the key schedule table populate with the
 		 * correct values. The algorithm description begins at index 1, so 0x8d is
 		 * needed at index 0 as a start point. Got value from Wiki. 
@@ -116,14 +134,27 @@ public class AES {
 		keyExpansion();
 	}
 
-	/* xtime() function */
+	/*
+	 * xtime() function, used for multiplication by x. This takes byte b, 
+	 * performs a left shift on it, and a conditional XOR with 0x1b. The 
+	 * XOR is necessary to reduce the polynomial if b7 is equal to one. In
+	 * other words, if b & 0x80 is set. 
+	 * 
+	 * @param	b	Byte to perform xtime operation on. 
+	 * @return		Returns b left shifted, with a conditional XOR with 0x1b. 
+	 */
 	static private byte xtime (byte b) {
 		if ((b & (byte)0x80) != 0)
 			return (byte)((b << 1) ^ 0x1b);
 		return (byte)(b << 1);
 	}
 	
-	/*Perform Plaintext substitution*/
+	/*
+	 * Performs S-Box substitution on the current state. 
+	 * 
+	 * No parameters are accepted because the function accesses 
+	 * the global state array. 
+	 */
 	private void subBytes () {
 		for (int i = 0; i < Nk; i++) {
 			for (int j = 0; j < Nb; j++)
@@ -131,7 +162,14 @@ public class AES {
 		}
 	}
 	
-	/* Byte Multiplication by x*/
+	/*
+	 * Byte Multiplication by x. Invokes xtime in a loop and adds the results
+	 * using XOR. 
+	 * 
+	 *  @param	b	Polynomial being multiplied by x. 
+	 *  @param	x	The polynomial x that multiplies b
+	 *  @return		Returns the product of x and b. 
+	 */
 	private static byte multx (byte b, byte x) 
 	{
 		byte prod = 0, shift = 1, xt = b;
@@ -145,7 +183,15 @@ public class AES {
 		return prod;
 	}
 
-	/* Shift rows - first row not affected */
+	/*
+	 * Shift rows - first row not affected. Performs a cyclic 
+	 * 'byte shift' on each row, starting by shifting 0 bytes
+	 * on row 0, and increasing the number of shifts for each 
+	 * ascending row. Refers to a local deep copy of the state array. 
+	 * 
+	 * No parameters are accepted because the function accesses 
+	 * the global state array. 
+	 */
     private void shiftRows() {
         byte tmp[][] = new byte[Nk][Nb];
     	
@@ -157,7 +203,14 @@ public class AES {
                 this.state[row][col] = tmp[row][(col+row)%Nb];
 	}
 
-    /* Mix Columns Transformation */
+    /*
+     * Mix Columns Transformation: Makes a local deep copy of state array
+     * to refer to when performing the mixColumns() operations. The 
+     * destination is in the global state array.  
+     * 
+	 * No parameters are accepted because the function accesses 
+	 * the global state array. 
+     */
 	private void mixColumns() {
 		byte tmp[][] = new byte[Nk][Nb];
         
@@ -173,7 +226,15 @@ public class AES {
 		}
 	}
 
-	/* Add Round Key Transformation */
+	/* 
+	 * Add Round Key Transformation. This XORs the words from 
+	 * the key schedule with the global state array. 
+	 * 
+	 * @param	words	The key schedule array. 
+	 * @param	start	The starting index in the array that 
+	 * 					references the beginning of the key
+	 * 					being added. 
+	 */
 	private void addRoundKey (byte[][] words, int start) {
 		for (int c = 0; c < Nb; c++) {
 			state[0][c] ^= words[start+c][0];
@@ -183,16 +244,29 @@ public class AES {
 		}
 	}
     
-	/* Sub Word Transformation */
-    private byte[] subWord (byte word[]) {
+	/*
+	 * Sub Word Transformation: This substitutes each byte in
+	 * a 4-byte-array/word from the S-box. Function invokes 
+	 * SBox.sub on each byte. 
+	 * 
+	 * @param	word	The word to be substituted. 
+	 * @return			Returns the substituted word. 
+	 */
+	private byte[] subWord (byte word[]) {
     	for(int i = 0; i < 4; i++) {
     		word[i] = SBox.sub(word[i]); 
     	} 
         return word;
     }
     
-    /* Rotate Word Transformation */
-    private byte[] rotWord (byte word[]) {
+	/*
+	 * Rotate Word Transformation: Performs a cyclic 
+	 * permutation on a provided word. 
+	 * 
+	 * @param	word	Word to perform cyclic permutation on. 
+	 * @return			Returns word after operation. 
+	 */
+	private byte[] rotWord (byte word[]) {
         byte holder = word[0];
         
         for(int i = 0; i < 3; i++)
@@ -201,7 +275,15 @@ public class AES {
         return word;
     }
     
-    /* Inverse shift rows - first row not affected */
+    /*
+     * Inverse shift rows - first row not affected. Inverts the 
+     * shiftRows() operation. Creates a local deep copy to refer
+     * to when 'inverse-shifting' the rows. The global state array 
+     * is the destination. 
+     * 
+	 * No parameters are accepted because the function accesses 
+	 * the global state array. 
+     */
     private void invShiftRows() {
         byte tmp[][] = new byte[Nk][Nb];
         
@@ -216,7 +298,14 @@ public class AES {
                 this.state[row][(col+row)%Nb] = tmp[row][col];
 	}
     
-    /* Inverse Mix Columns */
+    /*
+     * Inverse mixColumns():  Inverts the mixColumns() operation.
+     * Creates a local deep copy to refer to for the operation. 
+     * The global state array is the destination.
+     * 
+	 * No parameters are accepted because the function accesses 
+	 * the global state array. 
+     */
     private void invMixColumns() {
     	byte tmp[][] = new byte[Nk][Nb];
 		for (int i = 0; i < Nk; i++) {
@@ -235,7 +324,13 @@ public class AES {
 		}
 	}
     
-    /* Inverse Sub Bytes Transformation */
+    /*
+     * Inverse Sub Bytes Transformation: Performs the 
+     * inverse S-Box substitution on the global state array.
+     * 
+	 * No parameters are accepted because the function accesses 
+	 * the global state array. 
+     */
     private void invSubBytes() {
 		for (int i = 0; i < Nk; i++) {
 			for (int j = 0; j < Nb; j++)
@@ -243,7 +338,13 @@ public class AES {
 		}           
     }
     
-    /* Key Expansion: Create Key Schedule */
+    /*
+     * Key Expansion Routine: Create Key Schedule. 
+     * The code from this is a direct implementation of the 
+     * pseudo-code from the spec. Our implementation lacks 
+     * parameters because we chose to store them in private
+     * global variables. 
+     */
     private void keyExpansion () {
     	byte[] temp = new byte[4];
 
@@ -271,7 +372,12 @@ public class AES {
     	}
     }
 	
-    /* Run Cipher */
+    /*
+     * Cipher Routine: Encrypts the state state array. This 
+     * is a direct implementation of the pseudo-code provided 
+     * in the spec. Our implementation lacks parameters because 
+     * we chose to store them in private global variables. 
+     */
 	private void cipher () {		
 		addRoundKey(w, 0);
 		for (int round = 1; round < Nr; round++) {
@@ -285,7 +391,12 @@ public class AES {
 		addRoundKey(w, Nr*Nb);
 	}
 	
-	/* Run Inverse Cipher */
+    /*
+     * Inverse Cipher Routine: Encrypts the state state array. This 
+     * is a direct implementation of the pseudo-code provided 
+     * in the spec. Our implementation lacks parameters because 
+     * we chose to store them in private global variables. 
+     */
 	public void invCipher () {
 		addRoundKey(dw, Nr*Nb);
 		for (int round =  Nr-1; round > 0; round--) {
@@ -299,7 +410,17 @@ public class AES {
 		addRoundKey(dw,0);
 	}
 	
-	/* Copy Plaintext into state array and run cipher */
+	/*
+	 * Copies the plaintext into the private global state array and 
+	 * encrypts it by invoking the cipher routine. Once cipher() 
+	 * finishes execution, the global state array will hold the 
+	 * ciphertext. The ciphertext is copied from the global state 
+	 * array and into the parameter variable that originally held the 
+	 * plaintext.
+	 * 
+	 * @param	plaintxt	The plaintext to be encrypted. 
+	 * @return				Returns the ciphertext. 	
+	 */
 	public byte[] encrypt (byte[] plaintxt) {
 		this.state = new byte[Nk][Nb];
 		for (int i = 0; i < Nk; i++) {
@@ -314,7 +435,17 @@ public class AES {
 		return plaintxt;
 	}
 	
-	/* Copy Ciphertext into state array and run cipher */
+	/*
+	 * Copies the plaintext into the private global state array and 
+	 * encrypts it by invoking the inverse cipher routine. Once invCipher() 
+	 * finishes execution, the global state array will hold the 
+	 * plaintext. The plaintext is copied from the global state 
+	 * array and into the parameter variable that originally held the 
+	 * ciphtertext.
+	 * 
+	 * @param	cipertxt	The cyphertext to be decrypted. 
+	 * @return				Returns the plaintext. 	
+	 */
 	public byte[] decrypt (byte[] ciphertxt) {
 		this.state = new byte[Nk][Nb];
 		for (int i = 0; i < Nk; i++) {
@@ -329,7 +460,10 @@ public class AES {
 		return ciphertxt;
 	}
 	
-	/*Print the state array */
+	/*
+	 * Prints the global state array, or the state array used 
+	 * in the encryption/decryption process. 
+	 */
 	public void printstate () {
 		for (int i = 0; i < state.length; i++) {
 			for (int j = 0; j < state[i].length; j++)
@@ -349,14 +483,17 @@ public class AES {
 		System.out.println("");
 	}
 	
-	/* Prints a byte array */
+	/* 
+	 * Prints a byte array, often used for printing a key. 
+	 */
 	public void printKey (byte[] key) {
 		for (int i = 0; i < key.length; i++)
 			System.out.printf("0x%02x,", key[i]);
 	}
 	
-	/* main function */
+	/* Main function */
 	public static void main (String[] args) {
+		/* This test encrypts some plaintext, and then decrypts it*/
 		AES test = new AES(tkey);
 		test.printKey(test.decrypt(test.encrypt(tcipher)));
 	}
