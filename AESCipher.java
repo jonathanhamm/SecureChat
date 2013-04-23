@@ -25,6 +25,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class AESCipher extends CipherSpi {
     byte[] iv = new byte[16];
+    byte[] buffer;
     boolean do_pad;
     boolean do_cbc;
 
@@ -55,7 +56,7 @@ public class AESCipher extends CipherSpi {
 	/**
 	 * Implement me.
 	 */
-    	return 0;
+      	return 0;
     }
     protected byte[] engineGetIV() {
     	byte[] retiv = new byte[16];
@@ -97,6 +98,14 @@ public class AESCipher extends CipherSpi {
 	/**
 	 * Implement me.
 	 */
+    	String alg;
+    	
+    	random.setSeed(iv);
+    	alg = key.getAlgorithm();
+    	if (alg.contains("cbc"))
+    		;
+    	if (alg.contains("PKCS5Padding"))
+    		;
     }
     private int allocateSize(int inputLen) {
 	/**
