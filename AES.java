@@ -1,6 +1,3 @@
-import AES;
-import AES.SBox;
-
 /*
  * AES implementation. 
  * CS 4153: Computer Security
@@ -490,11 +487,11 @@ public class AES {
 		for (int i = 0; i < key.length; i++)
 			System.out.printf("0x%02x,", key[i]);
 	}
-	
-	/* Main function */
+	/*
+	// Main function
 	public static void main (String[] args) {
-		/* This test encrypts some plaintext, and then decrypts it*/
+		// This test encrypts some plaintext, and then decrypts it
 		AES test = new AES(tkey);
 		test.printKey(test.decrypt(test.encrypt(tcipher)));
-	}
+	} */
 }
