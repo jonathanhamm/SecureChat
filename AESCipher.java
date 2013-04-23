@@ -26,6 +26,7 @@ import javax.crypto.spec.SecretKeySpec;
 public class AESCipher extends CipherSpi {
     byte[] iv = new byte[16];
     byte[] buffer;
+    int buffered;
     boolean do_pad;
     boolean do_cbc;
 
