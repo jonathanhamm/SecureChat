@@ -56,7 +56,19 @@ public class AESCipher extends CipherSpi {
 	/**
 	 * Implement me.
 	 */
-      	return 0;
+      	int total = inputLen + buffered;
+    	
+    	// No padding, just return total
+    	if(do_pad = false)
+    		return total;
+    	
+    	// Padding, calculate padding + total
+    	// This is probably wrong -----------
+    	if(total % engineGetBlockSize() == 0)
+    		return total + engineGetBlockSize();
+    	else 
+    		return total + (engineGetBlockSize() - (total % engineGetBlockSize()));
+    	// ----------------------------------
     }
     protected byte[] engineGetIV() {
     	byte[] retiv = new byte[16];
