@@ -15,6 +15,7 @@ import java.security.spec.InvalidParameterSpecException;
 import java.util.Arrays;
 
 import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
 import javax.crypto.CipherSpi;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
@@ -31,7 +32,8 @@ public class AESCipher extends CipherSpi {
     boolean do_cbc;
     int opmode;
     AES aes;
-
+    boolean encrypt;
+    
     protected void engineSetMode(String mode)
       throws NoSuchAlgorithmException {
     	if (mode.equals("CBC")) {
@@ -119,6 +121,11 @@ public class AESCipher extends CipherSpi {
     	this.buffered = 0;
     	random.setSeed(iv);
     	aes = new AES(key.getEncoded());
+    	if (opmode == Cipher.ENCRYPT_MODE)
+    		encrypt = true;
+    	else
+    		encrypt = false;
+    	
     }
     private int allocateSize(int inputLen) {
 	/**
@@ -160,13 +167,28 @@ public class AESCipher extends CipherSpi {
     			for (int i = 0; buffered < engineGetBlockSize(); buffered++, i++)
     				buffer[buffered] = input[inputOffset + i];
     			if (do_cbc) {
-    				for (int i = 0; i < engineGetBlockSize(); i++)
-    					buffer[i] ^= iv[i];
+    				if (encrypt) {
+    					for (int i = 0; i < engineGetBlockSize(); i++)
+    						buffer[i] ^= iv[i];
+    				}
+    				else {
+    					for (int i = 0; i < engineGetBlockSize(); i++)
+    						iv[i] = buffer[i];
+    				}
     			}
-    			tmp = aes.encrypt(buffer);
+    			if (encrypt)
+    				tmp = aes.encrypt(buffer);
+    			else
+    				tmp = aes.decrypt(buffer);
     			if (do_cbc) {
-    				for (int i = 0; i < engineGetBlockSize(); i++)
-    					iv[i] = tmp[i];
+    				if (encrypt) {
+    					for (int i = 0; i < engineGetBlockSize(); i++)
+    						iv[i] = tmp[i];
+    				}
+    				else {
+    					for (int i = 0; i < engineGetBlockSize(); i++)
+    						tmp[i] ^= iv[i];
+    				}
     			}
     			for (int i = 0; i < engineGetBlockSize(); i++, stored++)
     				output[outputOffset + stored + i] = tmp[i];
@@ -205,7 +227,10 @@ public class AESCipher extends CipherSpi {
     				for (int i = 0; i < engineGetBlockSize(); i++)
     					buffer[i] ^= iv[i];
     			}
-    			tmp = aes.encrypt(buffer);
+    			if (encrypt)
+    				tmp = aes.encrypt(buffer);
+    			else 
+    				tmp = aes.decrypt(buffer);
     			for (int i = 0; i < engineGetBlockSize(); i++) 
     				output[outputOffset + stored] = tmp[i];
     			stored += engineGetBlockSize();
