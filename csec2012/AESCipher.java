@@ -119,13 +119,18 @@ public class AESCipher extends CipherSpi {
     	this.buffer = new byte[engineGetBlockSize()];
     	this.opmode = opmode;
     	this.buffered = 0;
-    	random.setSeed(iv);
     	aes = new AES(key.getEncoded());
     	if (opmode == Cipher.ENCRYPT_MODE)
     		encrypt = true;
     	else
     		encrypt = false;
-    	
+    	if (params == null)
+        	random.setSeed(iv);
+    	else {
+    		if (params.getClass() == IvParameterSpec.class) /* questionable */
+    			iv = ((IvParameterSpec)params).getIV();
+    	}
+   
     }
     private int allocateSize(int inputLen) {
 	/**
@@ -224,13 +229,22 @@ public class AESCipher extends CipherSpi {
     			for (int i = buffered; i < padding; i++)
     				buffer[i] = (byte)padding;
     			if (do_cbc) {
-    				for (int i = 0; i < engineGetBlockSize(); i++)
-    					buffer[i] ^= iv[i];
+    				if (encrypt) {
+    					for (int i = 0; i < engineGetBlockSize(); i++)
+    						buffer[i] ^= iv[i];
+    				}
+    				else {
+    					for (int i = 0; i < engineGetBlockSize(); i++)  /* questionable */
+    						iv[i] = buffer[i];
+    				}
     			}
     			if (encrypt)
     				tmp = aes.encrypt(buffer);
-    			else 
+    			else {
     				tmp = aes.decrypt(buffer);
+    				for (int i = 0; i < engineGetBlockSize(); i++)
+    					tmp[i] ^= iv[i];
+    			}
     			for (int i = 0; i < engineGetBlockSize(); i++) 
     				output[outputOffset + stored] = tmp[i];
     			stored += engineGetBlockSize();
