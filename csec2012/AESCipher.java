@@ -209,7 +209,6 @@ public class AESCipher extends CipherSpi {
     		outputOffset += blockLen;
     	}
     	buffered += nBlocks * blockLen; //?*/
-    	return 0;
     }
     protected byte[] engineDoFinal(byte[] input, int inputOffset, int inputLen)
       throws IllegalBlockSizeException, BadPaddingException {
