@@ -29,7 +29,8 @@ public class AESCipher extends CipherSpi {
     int buffered;
     boolean do_pad;
     boolean do_cbc;
-    Key key;
+    int opmode;
+    AES aes;
 
     protected void engineSetMode(String mode)
       throws NoSuchAlgorithmException {
@@ -114,8 +115,9 @@ public class AESCipher extends CipherSpi {
 	 */
     	this.iv = new byte[engineGetBlockSize()];
     	this.buffer = new byte[engineGetBlockSize()];
-    	this.key = key;
+    	this.opmode = opmode;
     	random.setSeed(iv);
+    	aes = new AES(key.getEncoded());
     }
     private int allocateSize(int inputLen) {
 	/**
@@ -139,6 +141,15 @@ public class AESCipher extends CipherSpi {
 	/**
 	 * Implement me.
 	 */
+    	byte backup; 
+    	for (int i = 0; i < inputLen; i++)
+    		output[i] = input[inputOffset + i];
+    	output = aes.encrypt(output);
+    	for (int i = 0; i < inputLen; i++) {
+    		backup = output[i];
+    		output[i] ^= iv[i];
+    		iv[i] = backup;
+    	}
     	return 0;
     }
     protected byte[] engineDoFinal(byte[] input, int inputOffset, int inputLen)
