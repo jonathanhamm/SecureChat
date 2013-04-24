@@ -144,14 +144,16 @@ public class AESCipher extends CipherSpi {
 	 */
     	int nBytes;
     	int nBlocks = (buffered + inputLen) / engineGetBlockSize();
+    	int stored = 0;
     	byte[] tmp;
+    	
     	while (true) {
     		if (nBlocks == 0) {
     			nBytes = inputLen % engineGetBlockSize();
     			for (int i = 0; i < nBytes; i++)
     				buffer[buffered + i] = input[inputOffset + i];
     			buffered += nBytes;
-    			return 0;
+    			return stored;
     		}
     		else {
     			tmp = new byte[engineGetBlockSize()];
@@ -166,49 +168,12 @@ public class AESCipher extends CipherSpi {
     				for (int i = 0; i < engineGetBlockSize(); i++)
     					iv[i] = tmp[i];
     			}
-    			for (int i = 0; i < engineGetBlockSize(); i++)
-    				output[outputOffset + i] = tmp[i];
+    			for (int i = 0; i < engineGetBlockSize(); i++, stored++)
+    				output[outputOffset + stored + i] = tmp[i];
     			buffered = 0;
     			nBlocks--;
     		}
     	}
-    	/*int nPadding;
-    	int blockLen = engineGetBlockSize();
-    	int nBlocks = inputLen / blockLen;
-    	byte[] tmp = new byte[blockLen];
-    	
-    	if (inputLen % blockLen != 0 || (do_pad && inputLen % blockLen == 0))
-    		nBlocks++;
-    	for (int i = 0; i < nBlocks; i++) {
-    		int j;
-    		for (j = 0; j < blockLen; j++) {
-    			tmp[j] = input[inputOffset + j];
-    			if (do_cbc)
-    				tmp[j] ^= iv[j];
-    		}
-    		if (i == nBlocks-1) {
-    			nPadding = blockLen - (inputLen % blockLen);
-    			if (do_pad) {				
-    				for (; j < nPadding; j++)
-    					tmp[j] = (byte)nPadding;
-    			} 
-    			else {
-    				//Zero remaining bytes without PCKS5 Padding ?
-    				if (nPadding < 16)
-    				for (; j < nPadding; j++)
-    					tmp[j] = '\0';
-    			}
-    		}
-    		tmp = aes.encrypt(tmp);
-    		for (j = 0; j < blockLen; j++) {
-    			output[outputOffset + j] = tmp[j];
-    			if (do_cbc)
-    				iv[j] = tmp[j];
-    		}
-    		inputOffset += blockLen;
-    		outputOffset += blockLen;
-    	}
-    	buffered += nBlocks * blockLen; //?*/
     }
     protected byte[] engineDoFinal(byte[] input, int inputOffset, int inputLen)
       throws IllegalBlockSizeException, BadPaddingException {
@@ -226,6 +191,40 @@ public class AESCipher extends CipherSpi {
 	/**
 	 * Implement me.
 	 */
-    	return 0;
+    	int stored;
+    	int padding;
+    	byte[] tmp = new byte[engineGetBlockSize()];
+    	
+    	stored = engineUpdate(input, inputOffset, inputLen, output, outputOffset);
+    	if (buffered != 0) {
+    		if (do_pad){
+    			padding = engineGetBlockSize() - buffered;
+    			for (int i = buffered; i < padding; i++)
+    				buffer[i] = (byte)padding;
+    			if (do_cbc) {
+    				for (int i = 0; i < engineGetBlockSize(); i++)
+    					buffer[i] ^= iv[i];
+    			}
+    			tmp = aes.encrypt(buffer);
+    			for (int i = 0; i < engineGetBlockSize(); i++) 
+    				output[outputOffset + stored] = tmp[i];
+    			stored += engineGetBlockSize();
+    		}
+    		else {
+    			throw new IllegalBlockSizeException();
+    		}
+    	}
+    	else if (do_pad) {
+			for (int i = buffered; i < engineGetBlockSize(); i++)
+				buffer[i] = (byte)engineGetBlockSize();
+			if (do_cbc) {
+				for (int i = 0; i < engineGetBlockSize(); i++)
+					buffer[i] ^= iv[i];
+			}
+			for (int i = 0; i < engineGetBlockSize(); i++) 
+				output[outputOffset + stored] = tmp[i];
+			stored += engineGetBlockSize();
+    	}
+    	return stored;
     }
 }
