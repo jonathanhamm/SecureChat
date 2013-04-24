@@ -18,7 +18,7 @@ public class Chat {
 		provider = new CSec2012Prov();
 		Security.insertProviderAt(provider, 1);
 		try {
-			Cipher.getInstance("AES", provider);
+			Cipher.getInstance("AES/CBC/PKCS5Padding", provider);
 		} catch (NoSuchAlgorithmException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
