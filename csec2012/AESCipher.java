@@ -157,7 +157,8 @@ public class AESCipher extends CipherSpi {
     	int nBytes;
     	int nBlocks = (buffered + inputLen) / engineGetBlockSize();
     	int stored = 0;
-    	byte[] tmp;
+    	byte backup;
+    	byte[] tmp = new byte[engineGetBlockSize()];
     	
     	while (true) {
     		if (nBlocks == 0) {
@@ -168,7 +169,6 @@ public class AESCipher extends CipherSpi {
     			return stored;
     		}
     		else {
-    			tmp = new byte[engineGetBlockSize()];
     			for (int i = 0; buffered < engineGetBlockSize(); buffered++, i++)
     				buffer[buffered] = input[inputOffset + i];
     			if (do_cbc) {
@@ -187,8 +187,11 @@ public class AESCipher extends CipherSpi {
     			else {
     				tmp = aes.decrypt(buffer);
     				if (do_cbc) {
-    					for (int i = 0; i < engineGetBlockSize(); i++)
+    					for (int i = 0; i < engineGetBlockSize(); i++) {
+    						backup = tmp[i];
     						tmp[i] ^= iv[i];
+    						iv[i] = backup;
+    					}
     				}
     			}
     			for (int i = 0; i < engineGetBlockSize(); i++, stored++)
