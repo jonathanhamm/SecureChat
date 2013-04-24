@@ -24,11 +24,12 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 public class AESCipher extends CipherSpi {
-    byte[] iv = new byte[16];
+    byte[] iv;
     byte[] buffer;
     int buffered;
     boolean do_pad;
     boolean do_cbc;
+    Key key;
 
     protected void engineSetMode(String mode)
       throws NoSuchAlgorithmException {
@@ -111,13 +112,10 @@ public class AESCipher extends CipherSpi {
 	/**
 	 * Implement me.
 	 */
-    	String alg;
+    	this.iv = new byte[engineGetBlockSize()];
+    	this.buffer = new byte[engineGetBlockSize()];
+    	this.key = key;
     	random.setSeed(iv);
-    	alg = key.getAlgorithm();
-    	if (alg.contains("cbc"))
-    		;
-    	if (alg.contains("PKCS5Padding"))
-    		;
     }
     private int allocateSize(int inputLen) {
 	/**
@@ -133,6 +131,7 @@ public class AESCipher extends CipherSpi {
     	} catch (ShortBufferException e) {
     		System.err.println("Internal Error: " + e);
     	}
+    	
     	return Arrays.copyOf(output, size);
     }
     protected int engineUpdate(byte[] input, int inputOffset, int inputLen, byte[] output, int outputOffset)
