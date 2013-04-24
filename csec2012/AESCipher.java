@@ -142,7 +142,37 @@ public class AESCipher extends CipherSpi {
 	/**
 	 * Implement me.
 	 */
-    	int nPadding;
+    	int nBytes;
+    	int nBlocks = (buffered + inputLen) / engineGetBlockSize();
+    	byte[] tmp;
+    	while (true) {
+    		if (nBlocks == 0) {
+    			nBytes = inputLen % engineGetBlockSize();
+    			for (int i = 0; i < nBytes; i++)
+    				buffer[buffered + i] = input[inputOffset + i];
+    			buffered += nBytes;
+    			return 0;
+    		}
+    		else {
+    			tmp = new byte[engineGetBlockSize()];
+    			for (int i = 0; buffered < engineGetBlockSize(); buffered++, i++)
+    				buffer[buffered] = input[inputOffset + i];
+    			if (do_cbc) {
+    				for (int i = 0; i < engineGetBlockSize(); i++)
+    					buffer[i] ^= iv[i];
+    			}
+    			tmp = aes.encrypt(buffer);
+    			if (do_cbc) {
+    				for (int i = 0; i < engineGetBlockSize(); i++)
+    					iv[i] = tmp[i];
+    			}
+    			for (int i = 0; i < engineGetBlockSize(); i++)
+    				output[outputOffset + i] = tmp[i];
+    			buffered = 0;
+    			nBlocks--;
+    		}
+    	}
+    	/*int nPadding;
     	int blockLen = engineGetBlockSize();
     	int nBlocks = inputLen / blockLen;
     	byte[] tmp = new byte[blockLen];
@@ -164,6 +194,7 @@ public class AESCipher extends CipherSpi {
     			} 
     			else {
     				//Zero remaining bytes without PCKS5 Padding ?
+    				if (nPadding < 16)
     				for (; j < nPadding; j++)
     					tmp[j] = '\0';
     			}
@@ -177,7 +208,7 @@ public class AESCipher extends CipherSpi {
     		inputOffset += blockLen;
     		outputOffset += blockLen;
     	}
-    	buffered += nBlocks * blockLen; //?
+    	buffered += nBlocks * blockLen; //?*/
     	return 0;
     }
     protected byte[] engineDoFinal(byte[] input, int inputOffset, int inputLen)
