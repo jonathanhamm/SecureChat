@@ -1,8 +1,14 @@
+import java.security.AlgorithmParameterGenerator;
+import java.security.Key;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.Security;
 import javax.crypto.Cipher;
 import javax.crypto.CipherSpi;
+import javax.crypto.KeyAgreement;
 import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.DHParameterSpec;
+
 import csec2012.AESCipher;
 import csec2012.CSec2012Prov;
 import java.io.InputStream;
@@ -31,13 +37,12 @@ public class Chat {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-
 		parseArgs(new ArrayDeque<String>(Arrays.asList(args)));
 		Socket c = null;
 		if (mode == SERVER) {
 			try {
 				ServerSocket s = new ServerSocket(port);
-				c = s.accept();
+				c = s.accept();				
 			} catch (IOException e) {
 				System.err.println("There was an error opening the server:");
 				System.err.println(e);
@@ -141,11 +146,19 @@ public class Chat {
 		System.err.println("    java Chat -c ADDRESS PORT");
 		System.err.println("    invokes Chat in client mode attempting to connect to ADDRESS on PORT.");
 	}
-
+	
+	public static byte getMode () {
+		return mode;
+	}
+	public static void printByteArray (byte[] array) {
+		for (int i = 0; i < array.length; i++)
+			System.out.printf("0x%02x,", array[i]);
+		System.out.println();
+	}
 	private static final byte UNSPECIFIED = 0;
 	private static final byte SERVER = 1;
 	private static final byte CLIENT = 2;
-
+	
 	private static byte mode = UNSPECIFIED;
 	private static InetAddress addr = null;
 	private static int port = 0;
@@ -164,6 +177,31 @@ class ChatSender implements Runnable {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		//keyagree.generateSecret();
+		if (paramgen == null) {
+			try {
+				paramgen = AlgorithmParameterGenerator.getInstance("DiffieHellman");
+			} catch (NoSuchAlgorithmException e) {
+				e.printStackTrace();
+			}
+		}
+		try {
+			keyagree = KeyAgreement.getInstance("DiffieHellman", "SunJCE");
+		} catch (NoSuchAlgorithmException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		} catch (NoSuchProviderException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		} 
+
+		paramgen.init(1024);
+		try {
+			conn.write(paramgen.generateParameters().getEncoded());
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 
 	}
 	public void run() {
@@ -172,7 +210,9 @@ class ChatSender implements Runnable {
 			conn.println(line);
 		}
 	}
-
+	private static Key key;
+	private static KeyAgreement keyagree;
+	private static AlgorithmParameterGenerator paramgen = null;
 	private Scanner screen;
 	private PrintStream conn;
 	private Cipher cipher;
