@@ -127,8 +127,8 @@ public class AESCipher extends CipherSpi {
     	if (params == null)
         	random.setSeed(iv);
     	else {
-    		if (params.getClass() == IvParameterSpec.class) /* questionable */
-    			iv = ((IvParameterSpec)params).getIV();
+    		/* questionable */
+    		iv = ((IvParameterSpec)params).getIV();
     	}
    
     }
