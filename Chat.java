@@ -1,4 +1,5 @@
 import java.security.AlgorithmParameterGenerator;
+import java.security.AlgorithmParameters;
 import java.security.Key;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
@@ -27,6 +28,8 @@ import java.util.Scanner;
 public class Chat {
 	public static CSec2012Prov provider = new CSec2012Prov();
 	public static void main(String[] args) {
+		byte[] dparam;
+		
 		Security.insertProviderAt(provider, 1);
 		try {
 			Cipher.getInstance("AES/CBC/PKCS5Padding", provider);
@@ -42,7 +45,20 @@ public class Chat {
 		if (mode == SERVER) {
 			try {
 				ServerSocket s = new ServerSocket(port);
-				c = s.accept();				
+				c = s.accept();	
+				//keyagree.generateSecret();
+				try {
+					paramgen = AlgorithmParameterGenerator.getInstance("DiffieHellman");
+					keyagree = KeyAgreement.getInstance("DiffieHellman", "SunJCE");
+					paramgen.init(1024);
+					dparam = paramgen.generateParameters().getEncoded();
+					c.getOutputStream().write(dparam, 0, dparam.length);
+				} catch (NoSuchAlgorithmException e) {
+					e.printStackTrace();
+				} catch (NoSuchProviderException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 			} catch (IOException e) {
 				System.err.println("There was an error opening the server:");
 				System.err.println(e);
@@ -53,8 +69,13 @@ public class Chat {
 				System.exit(-2);
 			}
 		} else if (mode == CLIENT) {
+			dparam = new byte[1024];
 			try {
 				c = new Socket(addr, port);
+				c.getInputStream().read(dparam);
+				aparam = AlgorithmParameters.getInstance("DiffieHellman");
+				aparam.init(dparam);
+				
 			} catch (IOException e) {
 				System.err.println("There was an error connecting:");
 				System.err.println(e);
@@ -63,6 +84,9 @@ public class Chat {
 				System.err.println("You are not allowed to connect:");
 				System.err.println(e);
 				System.exit(-2);
+			} catch (NoSuchAlgorithmException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
 		} else {
 			System.err.println("Please specify the mode.");
@@ -162,6 +186,11 @@ public class Chat {
 	private static byte mode = UNSPECIFIED;
 	private static InetAddress addr = null;
 	private static int port = 0;
+	
+	private static Key key;
+	private static KeyAgreement keyagree;
+	private static AlgorithmParameters aparam;
+	private static AlgorithmParameterGenerator paramgen = null;
 }
 
 class ChatSender implements Runnable {
@@ -177,31 +206,6 @@ class ChatSender implements Runnable {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		//keyagree.generateSecret();
-		if (paramgen == null) {
-			try {
-				paramgen = AlgorithmParameterGenerator.getInstance("DiffieHellman");
-			} catch (NoSuchAlgorithmException e) {
-				e.printStackTrace();
-			}
-		}
-		try {
-			keyagree = KeyAgreement.getInstance("DiffieHellman", "SunJCE");
-		} catch (NoSuchAlgorithmException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		} catch (NoSuchProviderException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		} 
-
-		paramgen.init(1024);
-		try {
-			conn.write(paramgen.generateParameters().getEncoded());
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 
 	}
 	public void run() {
@@ -210,9 +214,6 @@ class ChatSender implements Runnable {
 			conn.println(line);
 		}
 	}
-	private static Key key;
-	private static KeyAgreement keyagree;
-	private static AlgorithmParameterGenerator paramgen = null;
 	private Scanner screen;
 	private PrintStream conn;
 	private Cipher cipher;
@@ -220,6 +221,8 @@ class ChatSender implements Runnable {
 
 class ChatReceiver implements Runnable {
 	public ChatReceiver(InputStream conn, OutputStream screen) {
+		int len;
+		byte[] param = new byte[1024 / 8];
 		this.conn = conn;
 		this.screen = screen;
 		try {
