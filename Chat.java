@@ -14,11 +14,16 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.InvalidParameterSpecException;
 import java.security.spec.X509EncodedKeySpec;
 
+import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.CipherSpi;
+import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.KeyAgreement;
 import javax.crypto.NoSuchPaddingException;
+import javax.crypto.ShortBufferException;
 import javax.crypto.spec.DHParameterSpec;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 import csec2012.AESCipher;
 import csec2012.CSec2012Prov;
@@ -57,8 +62,7 @@ public class Chat {
 			try {
 				ServerSocket s = new ServerSocket(port);
 				c = s.accept();	
-				aeskey = getSharedServer(s, c);
-				iv = getSharedServer(s, c);
+				shared = getSharedServer(s, c);
 			} catch (IOException e) {
 				System.err.println("There was an error opening the server:");
 				System.err.println(e);
@@ -71,8 +75,7 @@ public class Chat {
 		} else if (mode == CLIENT) {
 			try {
 				c = new Socket(addr, port);
-				aeskey = getSharedClient(c);
-				iv = getSharedClient(c);
+				shared = getSharedClient(c);
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -277,6 +280,20 @@ public class Chat {
 	public static byte getMode () {
 		return mode;
 	}
+	public static SecretKeySpec getAESKey () {
+		byte[] tmp = new byte[16];
+		
+		for (int i = 0; i < 16; i++)
+			tmp[i] = shared[i];
+		return new SecretKeySpec(tmp, "aes");
+	}
+	public static IvParameterSpec getIV () {
+		byte[] tmp = new byte[16];
+		
+		for (int i = 0; i < 16; i++)
+			tmp[i] = shared[i];
+		return new IvParameterSpec(tmp);
+	}
 	private static byte[] iToByteArray (int i) {
 		return ByteBuffer.allocate(4).putInt(i).array();
 	}
@@ -289,6 +306,7 @@ public class Chat {
 			System.out.printf("0x%02x,", array[i]);
 		System.out.println();
 	}
+	
 	private static final byte UNSPECIFIED = 0;
 	private static final byte SERVER = 1;
 	private static final byte CLIENT = 2;
@@ -297,10 +315,8 @@ public class Chat {
 	private static InetAddress addr = null;
 	private static int port = 0;
 	
-	private static byte[] aeskey;
-	private static byte[] iv;
+	private static byte[] shared;
 	
-	private static Key key; 
 	private static DHParameterSpec dhparam;
 	private static AlgorithmParameters aparam;
 	private static AlgorithmParameterGenerator paramgen = null;
@@ -318,18 +334,42 @@ class ChatSender implements Runnable {
 		this.conn = new PrintStream(conn);
 		try {
 			cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", Chat.provider);
+			cipher.init(Cipher.ENCRYPT_MODE, Chat.getAESKey(), Chat.getIV());
 		} catch (NoSuchAlgorithmException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (NoSuchPaddingException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} catch (InvalidKeyException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InvalidAlgorithmParameterException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
-
 	}
 	public void run() {
+		byte[] buffer = new byte[1024];
+		byte[] encrypted = new byte[1024];
+		
 		while (true) {
 			String line = screen.nextLine();
+			buffer = line.getBytes();
+			System.out.println(buffer.length);
+			try {
+				cipher.doFinal(buffer, 0, buffer.length, encrypted, 0);
+			} catch (ShortBufferException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IllegalBlockSizeException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (BadPaddingException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			line = new String(encrypted);
 			conn.println(line);
 		}
 	}
@@ -344,24 +384,42 @@ class ChatReceiver implements Runnable {
 		this.screen = screen;
 		try {
 			cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", Chat.provider);
+			cipher.init(Cipher.DECRYPT_MODE, Chat.getAESKey(), Chat.getIV());
 		} catch (NoSuchAlgorithmException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (NoSuchPaddingException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} catch (InvalidKeyException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InvalidAlgorithmParameterException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 	public void run() {
 		byte[] b = new byte[1024];
+		byte[] decrypted = new byte[1024];
 		while (true) {
 			try {
 				int len = conn.read(b);
 				if (len == -1) break;
-				screen.write(b, 0, len);
+				cipher.doFinal(b, 0, 50, decrypted, 0);
+				screen.write(decrypted, 0, len);
 			} catch (IOException e) {
 				System.err.println("There was an error receiving data:");
 				System.err.println(e);
+			} catch (ShortBufferException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IllegalBlockSizeException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (BadPaddingException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
 		}
 	}
