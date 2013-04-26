@@ -40,9 +40,6 @@ import java.util.Scanner;
 public class Chat {
 	public static CSec2012Prov provider = new CSec2012Prov();
 	public static void main(String[] args) {
-		int size;
-		byte[] size_b = new byte[4];
-		byte[] dparam, pubkey;
 		
 		Security.insertProviderAt(provider, 1);
 		try {
@@ -60,53 +57,8 @@ public class Chat {
 			try {
 				ServerSocket s = new ServerSocket(port);
 				c = s.accept();	
-				//keyagree.generateSecret();
-				try {
-					paramgen = AlgorithmParameterGenerator.getInstance("DiffieHellman");
-					paramgen.init(1024);
-					dparam = paramgen.generateParameters().getEncoded();
-					aparam = AlgorithmParameters.getInstance("DiffieHellman");
-					aparam.init(dparam);
-					dhparam = aparam.getParameterSpec(DHParameterSpec.class);
-					keypairgen = KeyPairGenerator.getInstance("DiffieHellman");
-					keypairgen.initialize(dhparam);
-					keypair = keypairgen.generateKeyPair();
-					/* Send size of parameter encoding first so client knows how much to receive */
-					c.getOutputStream().write(iToByteArray(dparam.length), 0 ,4);
-					/* Send actual encoding */
-					c.getOutputStream().write(dparam, 0, dparam.length);
-					pubkey = keypair.getPublic().getEncoded();
-					c.getOutputStream().write(iToByteArray(pubkey.length), 0 ,4);
-					c.getOutputStream().write(pubkey, 0, pubkey.length);
-					c.getInputStream().read(size_b, 0, 4);
-					size = byteArrayToI(size_b);
-					pubkey = new byte[size];
-					c.getInputStream().read(pubkey, 0, size);
-					x509spec = new X509EncodedKeySpec(pubkey);
-					keyfactory = KeyFactory.getInstance("DiffieHellman");
-					publickey = keyfactory.generatePublic(x509spec);
-					keyagree = KeyAgreement.getInstance("DiffieHellman", "SunJCE");
-					keyagree.init(keypair.getPrivate());
-					keyagree.doPhase(publickey, true);
-					printByteArray(keyagree.generateSecret());
-				} catch (NoSuchAlgorithmException e) {
-					e.printStackTrace();
-				} catch (NoSuchProviderException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (InvalidParameterSpecException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (InvalidAlgorithmParameterException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (InvalidKeySpecException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (InvalidKeyException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+				aeskey = getSharedServer(s, c);
+				iv = getSharedServer(s, c);
 			} catch (IOException e) {
 				System.err.println("There was an error opening the server:");
 				System.err.println(e);
@@ -119,59 +71,14 @@ public class Chat {
 		} else if (mode == CLIENT) {
 			try {
 				c = new Socket(addr, port);
-				/* Get size of parameter coding and initialize a buffer for it */
-				c.getInputStream().read(size_b, 0, 4);
-				size = byteArrayToI(size_b);
-				dparam = new byte[size];
-				c.getInputStream().read(dparam, 0, size);
-				aparam = AlgorithmParameters.getInstance("DiffieHellman");
-				aparam.init(dparam);
-				dhparam = aparam.getParameterSpec(DHParameterSpec.class);
-				keypairgen = KeyPairGenerator.getInstance("DiffieHellman");
-				keypairgen.initialize(dhparam);
-				keypair = keypairgen.generateKeyPair();
-				pubkey = keypair.getPublic().getEncoded();
-				c.getOutputStream().write(iToByteArray(pubkey.length), 0 ,4);
-				c.getOutputStream().write(pubkey, 0, pubkey.length);
-				c.getInputStream().read(size_b, 0, 4);
-				size = byteArrayToI(size_b);
-				pubkey = new byte[size];
-				c.getInputStream().read(pubkey, 0, size);
-				x509spec = new X509EncodedKeySpec(pubkey);
-				keyfactory = KeyFactory.getInstance("DiffieHellman");
-				publickey = keyfactory.generatePublic(x509spec);
-				keyagree = KeyAgreement.getInstance("DiffieHellman", "SunJCE");
-				keyagree.init(keypair.getPrivate());
-				keyagree.doPhase(publickey, true);
-				printByteArray(keyagree.generateSecret());
+				aeskey = getSharedClient(c);
+				iv = getSharedClient(c);
 			} catch (IOException e) {
-				System.err.println("There was an error connecting:");
-				System.err.println(e);
-				System.exit(-3);
-			} catch (SecurityException e) {
-				System.err.println("You are not allowed to connect:");
-				System.err.println(e);
-				System.exit(-2);
-			} catch (NoSuchAlgorithmException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (InvalidParameterSpecException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (InvalidAlgorithmParameterException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (InvalidKeySpecException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (NoSuchProviderException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (InvalidKeyException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-		} else {
+		}
+		 else {
 			System.err.println("Please specify the mode.");
 			printUsage();
 			System.exit(-1);
@@ -254,6 +161,119 @@ public class Chat {
 		System.err.println("    invokes Chat in client mode attempting to connect to ADDRESS on PORT.");
 	}
 	
+	private static byte[] getSharedClient (Socket c) {
+		int size;
+		byte[] size_b = new byte[4];
+		byte[] dparam, pubkey;
+
+		try {
+			c.getInputStream().read(size_b, 0, 4);
+			size = byteArrayToI(size_b);
+			dparam = new byte[size];
+			c.getInputStream().read(dparam, 0, size);
+			aparam = AlgorithmParameters.getInstance("DiffieHellman");
+			aparam.init(dparam);
+			dhparam = aparam.getParameterSpec(DHParameterSpec.class);
+			keypairgen = KeyPairGenerator.getInstance("DiffieHellman");
+			keypairgen.initialize(dhparam);
+			keypair = keypairgen.generateKeyPair();
+			pubkey = keypair.getPublic().getEncoded();
+			c.getOutputStream().write(iToByteArray(pubkey.length), 0 ,4);
+			c.getOutputStream().write(pubkey, 0, pubkey.length);
+			c.getInputStream().read(size_b, 0, 4);
+			size = byteArrayToI(size_b);
+			pubkey = new byte[size];
+			c.getInputStream().read(pubkey, 0, size);
+			x509spec = new X509EncodedKeySpec(pubkey);
+			keyfactory = KeyFactory.getInstance("DiffieHellman");
+			publickey = keyfactory.generatePublic(x509spec);
+			keyagree = KeyAgreement.getInstance("DiffieHellman", "SunJCE");
+			keyagree.init(keypair.getPrivate());
+			keyagree.doPhase(publickey, true);
+			return keyagree.generateSecret("aes").getEncoded();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InvalidKeySpecException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchProviderException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InvalidKeyException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InvalidParameterSpecException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InvalidAlgorithmParameterException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	private static byte[] getSharedServer (ServerSocket s, Socket c) {
+		int size;
+		byte[] size_b = new byte[4];
+		byte[] dparam, pubkey;
+
+		try {
+			paramgen = AlgorithmParameterGenerator.getInstance("DiffieHellman");
+			paramgen.init(1024);
+			dparam = paramgen.generateParameters().getEncoded();
+			aparam = AlgorithmParameters.getInstance("DiffieHellman");
+			aparam.init(dparam);
+			dhparam = aparam.getParameterSpec(DHParameterSpec.class);
+			keypairgen = KeyPairGenerator.getInstance("DiffieHellman");
+			keypairgen.initialize(dhparam);
+			keypair = keypairgen.generateKeyPair();
+			c.getOutputStream().write(iToByteArray(dparam.length), 0 ,4);
+			c.getOutputStream().write(dparam, 0, dparam.length);
+			pubkey = keypair.getPublic().getEncoded();
+			c.getOutputStream().write(iToByteArray(pubkey.length), 0 ,4);
+			c.getOutputStream().write(pubkey, 0, pubkey.length);
+			c.getInputStream().read(size_b, 0, 4);
+			size = byteArrayToI(size_b);
+			pubkey = new byte[size];
+			c.getInputStream().read(pubkey, 0, size);
+			x509spec = new X509EncodedKeySpec(pubkey);
+			keyfactory = KeyFactory.getInstance("DiffieHellman");
+			publickey = keyfactory.generatePublic(x509spec);
+			keyagree = KeyAgreement.getInstance("DiffieHellman", "SunJCE");
+			keyagree.init(keypair.getPrivate());
+			keyagree.doPhase(publickey, true);
+			return keyagree.generateSecret("aes").getEncoded();
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InvalidParameterSpecException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InvalidKeyException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IllegalStateException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchProviderException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InvalidKeySpecException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InvalidAlgorithmParameterException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
 	public static byte getMode () {
 		return mode;
 	}
@@ -276,6 +296,9 @@ public class Chat {
 	private static byte mode = UNSPECIFIED;
 	private static InetAddress addr = null;
 	private static int port = 0;
+	
+	private static byte[] aeskey;
+	private static byte[] iv;
 	
 	private static Key key; 
 	private static DHParameterSpec dhparam;
