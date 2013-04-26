@@ -1,13 +1,18 @@
 import java.security.AlgorithmParameterGenerator;
 import java.security.AlgorithmParameters;
 import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
 import java.security.Key;
+import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
+import java.security.PublicKey;
 import java.security.Security;
+import java.security.spec.InvalidKeySpecException;
 import java.security.spec.InvalidParameterSpecException;
+import java.security.spec.X509EncodedKeySpec;
 
 import javax.crypto.Cipher;
 import javax.crypto.CipherSpi;
@@ -35,7 +40,9 @@ import java.util.Scanner;
 public class Chat {
 	public static CSec2012Prov provider = new CSec2012Prov();
 	public static void main(String[] args) {
-		byte[] dparam;
+		int size;
+		byte[] size_b = new byte[4];
+		byte[] dparam, pubkey;
 		
 		Security.insertProviderAt(provider, 1);
 		try {
@@ -56,7 +63,6 @@ public class Chat {
 				//keyagree.generateSecret();
 				try {
 					paramgen = AlgorithmParameterGenerator.getInstance("DiffieHellman");
-					keyagree = KeyAgreement.getInstance("DiffieHellman", "SunJCE");
 					paramgen.init(1024);
 					dparam = paramgen.generateParameters().getEncoded();
 					aparam = AlgorithmParameters.getInstance("DiffieHellman");
@@ -69,7 +75,20 @@ public class Chat {
 					c.getOutputStream().write(iToByteArray(dparam.length), 0 ,4);
 					/* Send actual encoding */
 					c.getOutputStream().write(dparam, 0, dparam.length);
-				//	printByteArray(keypair.getPublic().getEncoded());
+					pubkey = keypair.getPublic().getEncoded();
+					c.getOutputStream().write(iToByteArray(pubkey.length), 0 ,4);
+					c.getOutputStream().write(pubkey, 0, pubkey.length);
+					c.getInputStream().read(size_b, 0, 4);
+					size = byteArrayToI(size_b);
+					pubkey = new byte[size];
+					c.getInputStream().read(pubkey, 0, size);
+					x509spec = new X509EncodedKeySpec(pubkey);
+					keyfactory = KeyFactory.getInstance("DiffieHellman");
+					publickey = keyfactory.generatePublic(x509spec);
+					keyagree = KeyAgreement.getInstance("DiffieHellman", "SunJCE");
+					keyagree.init(keypair.getPrivate());
+					keyagree.doPhase(publickey, true);
+					printByteArray(keyagree.generateSecret());
 				} catch (NoSuchAlgorithmException e) {
 					e.printStackTrace();
 				} catch (NoSuchProviderException e) {
@@ -79,6 +98,12 @@ public class Chat {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				} catch (InvalidAlgorithmParameterException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (InvalidKeySpecException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (InvalidKeyException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
@@ -92,8 +117,6 @@ public class Chat {
 				System.exit(-2);
 			}
 		} else if (mode == CLIENT) {
-			int size;
-			byte[] size_b = new byte[4];
 			try {
 				c = new Socket(addr, port);
 				/* Get size of parameter coding and initialize a buffer for it */
@@ -107,7 +130,20 @@ public class Chat {
 				keypairgen = KeyPairGenerator.getInstance("DiffieHellman");
 				keypairgen.initialize(dhparam);
 				keypair = keypairgen.generateKeyPair();
-				printByteArray(keypair.getPublic().getEncoded());
+				pubkey = keypair.getPublic().getEncoded();
+				c.getOutputStream().write(iToByteArray(pubkey.length), 0 ,4);
+				c.getOutputStream().write(pubkey, 0, pubkey.length);
+				c.getInputStream().read(size_b, 0, 4);
+				size = byteArrayToI(size_b);
+				pubkey = new byte[size];
+				c.getInputStream().read(pubkey, 0, size);
+				x509spec = new X509EncodedKeySpec(pubkey);
+				keyfactory = KeyFactory.getInstance("DiffieHellman");
+				publickey = keyfactory.generatePublic(x509spec);
+				keyagree = KeyAgreement.getInstance("DiffieHellman", "SunJCE");
+				keyagree.init(keypair.getPrivate());
+				keyagree.doPhase(publickey, true);
+				printByteArray(keyagree.generateSecret());
 			} catch (IOException e) {
 				System.err.println("There was an error connecting:");
 				System.err.println(e);
@@ -123,6 +159,15 @@ public class Chat {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			} catch (InvalidAlgorithmParameterException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (InvalidKeySpecException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (NoSuchProviderException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (InvalidKeyException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
@@ -216,10 +261,8 @@ public class Chat {
 		return ByteBuffer.allocate(4).putInt(i).array();
 	}
 	private static int byteArrayToI (byte[] array) {
-		int result = 0;
-		for (int i = 0; i < 4; i++)
-			result |= array[i] << ((3 - i) * 8);
-		return result;
+	    return   array[3] & 0xFF | (array[2] & 0xFF) << 8 |
+        		(array[1] & 0xFF) << 16 | (array[0] & 0xFF) << 24;
 	}
 	public static void printByteArray (byte[] array) {
 		for (int i = 0; i < array.length; i++)
@@ -234,13 +277,16 @@ public class Chat {
 	private static InetAddress addr = null;
 	private static int port = 0;
 	
-	private static Key key;
+	private static Key key; 
 	private static DHParameterSpec dhparam;
 	private static AlgorithmParameters aparam;
 	private static AlgorithmParameterGenerator paramgen = null;
 	private static KeyPairGenerator keypairgen;
 	private static KeyPair keypair;
 	private static KeyAgreement keyagree;
+	private static KeyFactory keyfactory;
+	private static PublicKey publickey;
+	private static X509EncodedKeySpec x509spec;
 }
 
 class ChatSender implements Runnable {
@@ -271,8 +317,6 @@ class ChatSender implements Runnable {
 
 class ChatReceiver implements Runnable {
 	public ChatReceiver(InputStream conn, OutputStream screen) {
-		int len;
-		byte[] param = new byte[1024 / 8];
 		this.conn = conn;
 		this.screen = screen;
 		try {
