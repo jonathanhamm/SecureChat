@@ -1,9 +1,14 @@
 import java.security.AlgorithmParameterGenerator;
 import java.security.AlgorithmParameters;
+import java.security.InvalidAlgorithmParameterException;
 import java.security.Key;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.Security;
+import java.security.spec.InvalidParameterSpecException;
+
 import javax.crypto.Cipher;
 import javax.crypto.CipherSpi;
 import javax.crypto.KeyAgreement;
@@ -54,13 +59,26 @@ public class Chat {
 					keyagree = KeyAgreement.getInstance("DiffieHellman", "SunJCE");
 					paramgen.init(1024);
 					dparam = paramgen.generateParameters().getEncoded();
-					printByteArray(dparam);
-					System.out.println("Size: "+dparam.length);
+					aparam = AlgorithmParameters.getInstance("DiffieHellman");
+					aparam.init(dparam);
+					dhparam = aparam.getParameterSpec(DHParameterSpec.class);
+					keypairgen = KeyPairGenerator.getInstance("DiffieHellman");
+					keypairgen.initialize(dhparam);
+					keypair = keypairgen.generateKeyPair();
+					/* Send size of parameter encoding first so client knows how much to receive */
 					c.getOutputStream().write(iToByteArray(dparam.length), 0 ,4);
+					/* Send actual encoding */
 					c.getOutputStream().write(dparam, 0, dparam.length);
+					
 				} catch (NoSuchAlgorithmException e) {
 					e.printStackTrace();
 				} catch (NoSuchProviderException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (InvalidParameterSpecException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (InvalidAlgorithmParameterException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
@@ -78,15 +96,17 @@ public class Chat {
 			byte[] size_b = new byte[4];
 			try {
 				c = new Socket(addr, port);
+				/* Get size of parameter coding and initialize a buffer for it */
 				c.getInputStream().read(size_b, 0, 4);
 				size = byteArrayToI(size_b);
-				System.out.println("Reading of size: "+size);
 				dparam = new byte[size];
 				c.getInputStream().read(dparam, 0, size);
-				printByteArray(dparam);
-				System.out.println();
 				aparam = AlgorithmParameters.getInstance("DiffieHellman");
 				aparam.init(dparam);
+				dhparam = aparam.getParameterSpec(DHParameterSpec.class);
+				keypairgen = KeyPairGenerator.getInstance("DiffieHellman");
+				keypairgen.initialize(dhparam);
+				keypair = keypairgen.generateKeyPair();
 			} catch (IOException e) {
 				System.err.println("There was an error connecting:");
 				System.err.println(e);
@@ -96,6 +116,12 @@ public class Chat {
 				System.err.println(e);
 				System.exit(-2);
 			} catch (NoSuchAlgorithmException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (InvalidParameterSpecException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (InvalidAlgorithmParameterException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
@@ -208,9 +234,12 @@ public class Chat {
 	private static int port = 0;
 	
 	private static Key key;
-	private static KeyAgreement keyagree;
+	private static DHParameterSpec dhparam;
 	private static AlgorithmParameters aparam;
 	private static AlgorithmParameterGenerator paramgen = null;
+	private static KeyPairGenerator keypairgen;
+	private static KeyPair keypair;
+	private static KeyAgreement keyagree;
 }
 
 class ChatSender implements Runnable {
