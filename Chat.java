@@ -69,7 +69,7 @@ public class Chat {
 					c.getOutputStream().write(iToByteArray(dparam.length), 0 ,4);
 					/* Send actual encoding */
 					c.getOutputStream().write(dparam, 0, dparam.length);
-					
+				//	printByteArray(keypair.getPublic().getEncoded());
 				} catch (NoSuchAlgorithmException e) {
 					e.printStackTrace();
 				} catch (NoSuchProviderException e) {
@@ -107,6 +107,7 @@ public class Chat {
 				keypairgen = KeyPairGenerator.getInstance("DiffieHellman");
 				keypairgen.initialize(dhparam);
 				keypair = keypairgen.generateKeyPair();
+				printByteArray(keypair.getPublic().getEncoded());
 			} catch (IOException e) {
 				System.err.println("There was an error connecting:");
 				System.err.println(e);
