@@ -20,8 +20,10 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Scanner;
 
@@ -52,6 +54,9 @@ public class Chat {
 					keyagree = KeyAgreement.getInstance("DiffieHellman", "SunJCE");
 					paramgen.init(1024);
 					dparam = paramgen.generateParameters().getEncoded();
+					printByteArray(dparam);
+					System.out.println("Size: "+dparam.length);
+					c.getOutputStream().write(iToByteArray(dparam.length), 0 ,4);
 					c.getOutputStream().write(dparam, 0, dparam.length);
 				} catch (NoSuchAlgorithmException e) {
 					e.printStackTrace();
@@ -69,13 +74,19 @@ public class Chat {
 				System.exit(-2);
 			}
 		} else if (mode == CLIENT) {
-			dparam = new byte[1024];
+			int size;
+			byte[] size_b = new byte[4];
 			try {
 				c = new Socket(addr, port);
-				c.getInputStream().read(dparam);
+				c.getInputStream().read(size_b, 0, 4);
+				size = byteArrayToI(size_b);
+				System.out.println("Reading of size: "+size);
+				dparam = new byte[size];
+				c.getInputStream().read(dparam, 0, size);
+				printByteArray(dparam);
+				System.out.println();
 				aparam = AlgorithmParameters.getInstance("DiffieHellman");
 				aparam.init(dparam);
-				
 			} catch (IOException e) {
 				System.err.println("There was an error connecting:");
 				System.err.println(e);
@@ -173,6 +184,15 @@ public class Chat {
 	
 	public static byte getMode () {
 		return mode;
+	}
+	private static byte[] iToByteArray (int i) {
+		return ByteBuffer.allocate(4).putInt(i).array();
+	}
+	private static int byteArrayToI (byte[] array) {
+		int result = 0;
+		for (int i = 0; i < 4; i++)
+			result |= array[i] << ((3 - i) * 8);
+		return result;
 	}
 	public static void printByteArray (byte[] array) {
 		for (int i = 0; i < array.length; i++)
