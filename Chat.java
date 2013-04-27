@@ -284,10 +284,10 @@ public class Chat {
 			tmp[i] = shared[i];
 		return new IvParameterSpec(tmp);
 	}
-	private static byte[] iToByteArray (int i) {
+	public static byte[] iToByteArray (int i) {
 		return ByteBuffer.allocate(4).putInt(i).array();
 	}
-	private static int byteArrayToI (byte[] array) {
+	public static int byteArrayToI (byte[] array) {
 	    return   array[3] & 0xFF | (array[2] & 0xFF) << 8 |
         		(array[1] & 0xFF) << 16 | (array[0] & 0xFF) << 24;
 	}
@@ -348,8 +348,6 @@ class ChatSender implements Runnable {
 			buffer = line.getBytes();
 			try {
 				encrypted = cipher.doFinal(buffer);
-				for (int i = 0; i < buffer.length; i++)
-					buffer[i] = 0;
 			} catch (IllegalBlockSizeException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -357,7 +355,10 @@ class ChatSender implements Runnable {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
+			conn.write(Chat.iToByteArray(encrypted.length), 0 ,4);
 			conn.write(encrypted, 0, encrypted.length);
+			System.out.println(buffer.length);
+			Chat.printByteArray(encrypted);
 		}
 	}
 	private Scanner screen;
@@ -387,14 +388,18 @@ class ChatReceiver implements Runnable {
 		}
 	}
 	public void run() {
-		byte[] b = new byte[16];
+		int size;
+		byte[] b;
 		byte[] decrypted;
+		byte[] size_b = new byte[4];
+		
 		while (true) {
 			try {
-				for (int i = 0; i < b.length; i++)
-					b[i] = 0;
-				int len = conn.read(b);
-				
+				conn.read(size_b, 0, 4);
+				size = Chat.byteArrayToI(size_b);
+				b = new byte[size];
+				int len = conn.read(b,0,size);
+				Chat.printByteArray(b);
 				if (len == -1) break;				
 				decrypted = cipher.doFinal(b);
 				screen.write(decrypted, 0, len);

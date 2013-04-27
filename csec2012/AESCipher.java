@@ -159,13 +159,13 @@ public class AESCipher extends CipherSpi {
 	 * Implement me.
 	 */
     	int i, processed = 0, outputwritten = 0;
-    	byte backup;
     	byte[] tmp;
+    	byte[] ivbackup = new byte[engineGetBlockSize()];
     	
     	while (true) {
     		for (i = 0; processed < inputLen && buffered < engineGetBlockSize(); buffered++, i++, processed++) 
-    			buffer[buffered] = input[inputOffset + i];
-    		if (processed < inputLen) {
+    			buffer[buffered] = input[inputOffset + processed];
+    		if (processed < inputLen || (processed == inputLen && buffered == engineGetBlockSize() && do_pad && encrypt)) {
     			if (encrypt) {
     				if (do_cbc) {
     					for (int j = 0; j < engineGetBlockSize(); j++)
@@ -178,17 +178,18 @@ public class AESCipher extends CipherSpi {
     				}
     			}
     			else {
+    				for (int j = 0; j < engineGetBlockSize(); j++) {
+    					ivbackup[j] = iv[j];
+    					iv[j] = buffer[j];
+    				}
     				tmp = aes.decrypt(buffer);
     				if (do_cbc) {
-    					for (int j = 0; j < engineGetBlockSize(); j++) {
-    						backup = tmp[j];
-    						tmp[j] ^= iv[j];
-    						iv[j] = backup;
-    					}
+    					for (int j = 0; j < engineGetBlockSize(); j++)
+    						tmp[j] ^= ivbackup[j];
     				}
     			}
 				for (int j = 0; j < engineGetBlockSize(); j++, outputwritten++)
-					output[outputOffset + j] = tmp[j];
+					output[outputOffset + outputwritten] = tmp[j];
 				buffered = 0;
     		}
     		else 
@@ -213,15 +214,16 @@ public class AESCipher extends CipherSpi {
 	 */
     	int outputwritten;
     	byte padding;
-    	byte backup;
     	byte[] tmp;
+    	byte[] ivbackup = new byte[engineGetBlockSize()];
     	
     	outputwritten = engineUpdate(input, inputOffset, inputLen, output, outputOffset);
+    	inputOffset += outputwritten;
     	if (encrypt) {
     		if (do_pad) {
     			padding = (byte) (engineGetBlockSize() - (buffered % engineGetBlockSize()));
     			for (int i = buffered % engineGetBlockSize(); i < engineGetBlockSize(); i++)
-    				buffer[i] = padding;
+    				buffer[buffered] = padding;
     		}
     		if (do_cbc) {
     			for (int i = 0; i < engineGetBlockSize(); i++)
@@ -236,13 +238,16 @@ public class AESCipher extends CipherSpi {
     	else {
     		if (buffered == 0)
     			return outputwritten;
+    		if (do_cbc) {
+    			for (int i = 0; i < engineGetBlockSize(); i++) {
+    				ivbackup[i] = iv[i];
+    				iv[i] = buffer[i];
+    			}
+    		}
     		tmp = aes.decrypt(buffer);
     		if (do_cbc) {
-				for (int j = 0; j < engineGetBlockSize(); j++) {
-					backup = tmp[j];
-					tmp[j] ^= iv[j];
-					iv[j] = backup;
-				}
+				for (int j = 0; j < engineGetBlockSize(); j++)
+					tmp[j] ^= ivbackup[j];
     		}
     		if (do_pad) {
     			padding = tmp[engineGetBlockSize() - 1];
@@ -256,7 +261,7 @@ public class AESCipher extends CipherSpi {
     		}
     	}
 		for (int i = 0; i < engineGetBlockSize(); i++, outputwritten++)
-			output[outputOffset + i] = tmp[i];
+			output[outputOffset + outputwritten] = tmp[i];
 		buffered = 0;
     	return outputwritten;
     }
