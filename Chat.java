@@ -275,7 +275,7 @@ public class Chat {
 		
 		for (int i = 0; i < 16; i++)
 			tmp[i] = shared[i];
-		return new SecretKeySpec(tmp, "AES/CBC/PKCS5Padding");
+		return new SecretKeySpec(tmp, "AES");
 	}
 	public static IvParameterSpec getIV () {
 		byte[] tmp = new byte[16];
@@ -326,16 +326,12 @@ class ChatSender implements Runnable {
 			cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", Chat.provider);
 			cipher.init(Cipher.ENCRYPT_MODE, Chat.getAESKey(), Chat.getIV());
 		} catch (NoSuchAlgorithmException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (NoSuchPaddingException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (InvalidKeyException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (InvalidAlgorithmParameterException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -349,11 +345,11 @@ class ChatSender implements Runnable {
 			try {
 				encrypted = cipher.doFinal(buffer);
 			} catch (IllegalBlockSizeException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				System.out.println("Illegal Block Size (must be multiple of 16)");
+				continue;
 			} catch (BadPaddingException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
+				continue;
 			}
 			conn.write(Chat.iToByteArray(encrypted.length), 0 ,4);
 			conn.write(encrypted, 0, encrypted.length);
@@ -372,26 +368,23 @@ class ChatReceiver implements Runnable {
 			cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", Chat.provider);
 			cipher.init(Cipher.DECRYPT_MODE, Chat.getAESKey(), Chat.getIV());
 		} catch (NoSuchAlgorithmException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (NoSuchPaddingException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (InvalidKeyException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (InvalidAlgorithmParameterException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
 	public void run() {
-		int size;
+		int size = 0;
 		byte[] b;
 		byte[] decrypted;
 		byte[] size_b = new byte[4];
-		
+
 		while (true) {
+			decrypted = null;
 			try {
 				conn.read(size_b, 0, 4);
 				size = Chat.byteArrayToI(size_b);
@@ -399,19 +392,24 @@ class ChatReceiver implements Runnable {
 				int len = conn.read(b,0,size);
 				if (len == -1) break;				
 				decrypted = cipher.doFinal(b);
-				screen.write(decrypted, 0, len);
 			} catch (IOException e) {
 				System.err.println("There was an error receiving data:");
 				System.err.println(e);
 			} catch (IllegalBlockSizeException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				System.out.println("Illegal Block Size (must be multiple of 16)");
+				continue;
 			} catch (BadPaddingException e) {
-				// TODO Auto-generated catch block
+				e.printStackTrace();
+				continue;
+			}
+			try {
+				if (decrypted != null)
+					screen.write(decrypted, 0, size);
+				System.out.println();
+			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
-		//System.out.println(new String(decrypted));
 	}
 	private Cipher cipher;
 	private InputStream conn;

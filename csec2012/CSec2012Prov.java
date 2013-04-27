@@ -15,6 +15,6 @@ public class CSec2012Prov extends Provider {
      */
     public CSec2012Prov() {
         super("CSec2012", 1.0, "Provider for AES from Project 1.");
-        put("Cipher.AES/CBC/PKCS5Padding", "csec2012.AESCipher");
+        put("Cipher.AES", "csec2012.AESCipher");
     }
 }

@@ -119,8 +119,6 @@ public class AESCipher extends CipherSpi {
     	this.buffer = new byte[engineGetBlockSize()];
     	this.opmode = opmode;
     	this.buffered = 0;
-    	this.do_cbc = true;
-    	this.do_pad = true;
     	aes = new AES(key.getEncoded());
     	if (opmode == Cipher.ENCRYPT_MODE)
     		encrypt = true;
@@ -165,6 +163,10 @@ public class AESCipher extends CipherSpi {
     	while (true) {
     		for (i = 0; processed < inputLen && buffered < engineGetBlockSize(); buffered++, i++, processed++) 
     			buffer[buffered] = input[inputOffset + processed];
+    		if (!do_pad) {
+    			if (processed == inputLen)
+    				return outputwritten;
+    		}
     		if (processed < inputLen || (processed == inputLen && buffered == engineGetBlockSize() && do_pad && encrypt)) {
     			if (encrypt) {
     				if (do_cbc) {
@@ -188,6 +190,8 @@ public class AESCipher extends CipherSpi {
     						tmp[j] ^= ivbackup[j];
     				}
     			}
+    			if (output.length < outputOffset + engineGetBlockSize())
+    				throw new ShortBufferException();
 				for (int j = 0; j < engineGetBlockSize(); j++, outputwritten++)
 					output[outputOffset + outputwritten] = tmp[j];
 				buffered = 0;
@@ -217,6 +221,8 @@ public class AESCipher extends CipherSpi {
     	byte[] tmp;
     	byte[] ivbackup = new byte[engineGetBlockSize()];
     	
+    	if (buffered + inputLen % engineGetBlockSize() != 0 && !do_pad)
+    		throw new IllegalBlockSizeException();
     	outputwritten = engineUpdate(input, inputOffset, inputLen, output, outputOffset);
     	if (encrypt) {
     		if (do_pad) {
@@ -248,14 +254,14 @@ public class AESCipher extends CipherSpi {
     		}
     		if (do_pad) {
     			padding = tmp[engineGetBlockSize() - 1];
-    			for (int i = 0, j = engineGetBlockSize()-1; i < padding; i++, j--) {
-    				if (i == padding-1)
-    					tmp[j] = (byte)'\n';
-    				else	
+    			if (padding <= 0 || padding > engineGetBlockSize())
+    				throw new BadPaddingException();
+    			for (int i = 0, j = engineGetBlockSize()-1; i < padding; i++, j--)
     					tmp[j] = 0;
-    			}
     		}
     	}
+    	if (output.length < outputOffset + engineGetBlockSize())
+    		throw new ShortBufferException();
 		for (int i = 0; i < engineGetBlockSize(); i++, outputwritten++)
 			output[outputOffset + outputwritten] = tmp[i];
 		buffered = 0;
