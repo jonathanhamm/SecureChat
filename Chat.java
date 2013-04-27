@@ -396,10 +396,8 @@ class ChatReceiver implements Runnable {
 		while (true) {
 			try {
 				int len = conn.read(b);
-				if (len == -1) break;
-				System.out.println("Received:");
 				Chat.printByteArray(b);
-				
+				if (len == -1) break;				
 				decrypted = cipher.doFinal(b);
 				//screen.write(decrypted, 0, len);
 			} catch (IOException e) {
