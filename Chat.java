@@ -357,8 +357,6 @@ class ChatSender implements Runnable {
 			}
 			conn.write(Chat.iToByteArray(encrypted.length), 0 ,4);
 			conn.write(encrypted, 0, encrypted.length);
-			System.out.println(buffer.length);
-			Chat.printByteArray(encrypted);
 		}
 	}
 	private Scanner screen;
@@ -399,7 +397,6 @@ class ChatReceiver implements Runnable {
 				size = Chat.byteArrayToI(size_b);
 				b = new byte[size];
 				int len = conn.read(b,0,size);
-				Chat.printByteArray(b);
 				if (len == -1) break;				
 				decrypted = cipher.doFinal(b);
 				screen.write(decrypted, 0, len);

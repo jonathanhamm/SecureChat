@@ -218,12 +218,11 @@ public class AESCipher extends CipherSpi {
     	byte[] ivbackup = new byte[engineGetBlockSize()];
     	
     	outputwritten = engineUpdate(input, inputOffset, inputLen, output, outputOffset);
-    	inputOffset += outputwritten;
     	if (encrypt) {
     		if (do_pad) {
-    			padding = (byte) (engineGetBlockSize() - (buffered % engineGetBlockSize()));
-    			for (int i = buffered % engineGetBlockSize(); i < engineGetBlockSize(); i++)
-    				buffer[buffered] = padding;
+    			padding = (byte) (engineGetBlockSize() - buffered);
+    			for (int i = buffered; i < engineGetBlockSize(); i++, buffered++)
+    				buffer[i] = padding;
     		}
     		if (do_cbc) {
     			for (int i = 0; i < engineGetBlockSize(); i++)
@@ -236,8 +235,6 @@ public class AESCipher extends CipherSpi {
     		}
     	}
     	else {
-    		if (buffered == 0)
-    			return outputwritten;
     		if (do_cbc) {
     			for (int i = 0; i < engineGetBlockSize(); i++) {
     				ivbackup[i] = iv[i];
@@ -251,7 +248,6 @@ public class AESCipher extends CipherSpi {
     		}
     		if (do_pad) {
     			padding = tmp[engineGetBlockSize() - 1];
-    			//System.out.println(padding);
     			for (int i = 0, j = engineGetBlockSize()-1; i < padding; i++, j--) {
     				if (i == padding-1)
     					tmp[j] = (byte)'\n';
