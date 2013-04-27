@@ -62,9 +62,8 @@ public class AESCipher extends CipherSpi {
 	 * Implement me.
 	 */
 	int total = inputLen + buffered;
-    	
     	// No padding, just return total
-    	if(do_pad = false)
+    	if(do_pad == false)
     		return total;
     	
     	// Padding, calculate padding + total
@@ -73,7 +72,8 @@ public class AESCipher extends CipherSpi {
     		return total + engineGetBlockSize();
     	else 
     		return total + (engineGetBlockSize() - (total % engineGetBlockSize()));
-    	// ----------------------------------
+    		
+    	// ---------------------------------- */
     }
     protected byte[] engineGetIV() {
     	byte[] retiv = new byte[16];
@@ -119,6 +119,8 @@ public class AESCipher extends CipherSpi {
     	this.buffer = new byte[engineGetBlockSize()];
     	this.opmode = opmode;
     	this.buffered = 0;
+    	this.do_cbc = true;
+    	this.do_pad = true;
     	aes = new AES(key.getEncoded());
     	if (opmode == Cipher.ENCRYPT_MODE)
     		encrypt = true;
@@ -130,13 +132,15 @@ public class AESCipher extends CipherSpi {
     		/* questionable */
     		iv = ((IvParameterSpec)params).getIV();
     	}
-   
+
     }
     private int allocateSize(int inputLen) {
 	/**
 	 * Implement me.
 	 */
-    	return 0;
+    	
+    	return (inputLen % engineGetBlockSize() == 0) ? inputLen+engineGetBlockSize() : 
+    			inputLen + (engineGetBlockSize() - (inputLen % engineGetBlockSize()));
     }
     protected byte[] engineUpdate(byte[] input, int inputOffset, int inputLen) {
     	byte[] output = new byte[allocateSize(inputLen)];
@@ -226,8 +230,11 @@ public class AESCipher extends CipherSpi {
     	if (buffered != 0) {
     		if (do_pad){
     			padding = engineGetBlockSize() - buffered;
-    			for (int i = buffered; i < padding; i++)
+    			System.out.println(buffered);
+    			for (int i = buffered; i < padding; i++) {
+    				System.out.println("Padding");
     				buffer[i] = (byte)padding;
+    			}
     			if (do_cbc) {
     				if (encrypt) {
     					for (int i = 0; i < engineGetBlockSize(); i++)

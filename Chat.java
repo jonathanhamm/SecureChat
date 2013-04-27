@@ -45,17 +45,7 @@ import java.util.Scanner;
 public class Chat {
 	public static CSec2012Prov provider = new CSec2012Prov();
 	public static void main(String[] args) {
-		
 		Security.insertProviderAt(provider, 1);
-		try {
-			Cipher.getInstance("AES/CBC/PKCS5Padding", provider);
-		} catch (NoSuchAlgorithmException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (NoSuchPaddingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 		parseArgs(new ArrayDeque<String>(Arrays.asList(args)));
 		Socket c = null;
 		if (mode == SERVER) {
@@ -285,7 +275,7 @@ public class Chat {
 		
 		for (int i = 0; i < 16; i++)
 			tmp[i] = shared[i];
-		return new SecretKeySpec(tmp, "aes");
+		return new SecretKeySpec(tmp, "AES/CBC/PKCS5Padding");
 	}
 	public static IvParameterSpec getIV () {
 		byte[] tmp = new byte[16];
@@ -350,18 +340,15 @@ class ChatSender implements Runnable {
 		}
 	}
 	public void run() {
-		byte[] buffer = new byte[1024];
-		byte[] encrypted = new byte[1024];
+		byte[] buffer = new byte[16];
+		byte[] encrypted = new byte[16];
 		
 		while (true) {
 			String line = screen.nextLine();
 			buffer = line.getBytes();
 			System.out.println(buffer.length);
 			try {
-				cipher.doFinal(buffer, 0, buffer.length, encrypted, 0);
-			} catch (ShortBufferException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				encrypted = cipher.doFinal(buffer);
 			} catch (IllegalBlockSizeException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -369,6 +356,10 @@ class ChatSender implements Runnable {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
+			System.out.println("Message in Bytes: ");
+			Chat.printByteArray(buffer);
+			System.out.println("Sending:");
+			Chat.printByteArray(encrypted);
 			line = new String(encrypted);
 			conn.println(line);
 		}
@@ -400,20 +391,20 @@ class ChatReceiver implements Runnable {
 		}
 	}
 	public void run() {
-		byte[] b = new byte[1024];
-		byte[] decrypted = new byte[1024];
+		byte[] b = new byte[16];
+		byte[] decrypted = new byte[16];
 		while (true) {
 			try {
 				int len = conn.read(b);
 				if (len == -1) break;
-				cipher.doFinal(b, 0, 50, decrypted, 0);
-				screen.write(decrypted, 0, len);
+				System.out.println("Received:");
+				Chat.printByteArray(b);
+				
+				decrypted = cipher.doFinal(b);
+				//screen.write(decrypted, 0, len);
 			} catch (IOException e) {
 				System.err.println("There was an error receiving data:");
 				System.err.println(e);
-			} catch (ShortBufferException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
 			} catch (IllegalBlockSizeException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -422,6 +413,10 @@ class ChatReceiver implements Runnable {
 				e.printStackTrace();
 			}
 		}
+		System.out.println("Received (encrypted):");
+		Chat.printByteArray(b);
+		System.out.println("Decrypted:");
+		Chat.printByteArray(decrypted);
 	}
 	private Cipher cipher;
 	private InputStream conn;
