@@ -191,7 +191,7 @@ public class AESCipher extends CipherSpi {
 					output[outputOffset + j] = tmp[j];
 				buffered = 0;
     		}
-    		else
+    		else 
     			return outputwritten;
     	}
     }
@@ -237,7 +237,6 @@ public class AESCipher extends CipherSpi {
     		if (buffered == 0)
     			return outputwritten;
     		tmp = aes.decrypt(buffer);
-
     		if (do_cbc) {
 				for (int j = 0; j < engineGetBlockSize(); j++) {
 					backup = tmp[j];
@@ -245,13 +244,20 @@ public class AESCipher extends CipherSpi {
 					iv[j] = backup;
 				}
     		}
+    		if (do_pad) {
+    			padding = tmp[engineGetBlockSize() - 1];
+    			//System.out.println(padding);
+    			for (int i = 0, j = engineGetBlockSize()-1; i < padding; i++, j--) {
+    				if (i == padding-1)
+    					tmp[j] = (byte)'\n';
+    				else	
+    					tmp[j] = 0;
+    			}
+    		}
     	}
 		for (int i = 0; i < engineGetBlockSize(); i++, outputwritten++)
 			output[outputOffset + i] = tmp[i];
 		buffered = 0;
-		System.out.println("'Decrypted'");
-		printByteArray(tmp);
-
     	return outputwritten;
     }
 	public static void printByteArray (byte[] array) {

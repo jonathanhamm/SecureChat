@@ -346,9 +346,10 @@ class ChatSender implements Runnable {
 		while (true) {
 			String line = screen.nextLine();
 			buffer = line.getBytes();
-			System.out.println(buffer.length);
 			try {
 				encrypted = cipher.doFinal(buffer);
+				for (int i = 0; i < buffer.length; i++)
+					buffer[i] = 0;
 			} catch (IllegalBlockSizeException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -356,12 +357,7 @@ class ChatSender implements Runnable {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			System.out.println("Message in Bytes: ");
-			Chat.printByteArray(buffer);
-			System.out.println("Sending:");
-			Chat.printByteArray(encrypted);
-			line = new String(encrypted);
-			conn.println(line);
+			conn.write(encrypted, 0, encrypted.length);
 		}
 	}
 	private Scanner screen;
@@ -392,14 +388,16 @@ class ChatReceiver implements Runnable {
 	}
 	public void run() {
 		byte[] b = new byte[16];
-		byte[] decrypted = new byte[16];
+		byte[] decrypted;
 		while (true) {
 			try {
+				for (int i = 0; i < b.length; i++)
+					b[i] = 0;
 				int len = conn.read(b);
-				Chat.printByteArray(b);
+				
 				if (len == -1) break;				
 				decrypted = cipher.doFinal(b);
-				//screen.write(decrypted, 0, len);
+				screen.write(decrypted, 0, len);
 			} catch (IOException e) {
 				System.err.println("There was an error receiving data:");
 				System.err.println(e);
@@ -411,10 +409,7 @@ class ChatReceiver implements Runnable {
 				e.printStackTrace();
 			}
 		}
-		System.out.println("Received (encrypted):");
-		Chat.printByteArray(b);
-		System.out.println("Decrypted:");
-		Chat.printByteArray(decrypted);
+		//System.out.println(new String(decrypted));
 	}
 	private Cipher cipher;
 	private InputStream conn;
