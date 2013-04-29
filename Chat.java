@@ -275,8 +275,6 @@ public class Chat {
 		
 		for (int i = 0; i < 16; i++)
 			tmp[i] = shared[i];
-		printByteArray(tmp);
-
 		return new SecretKeySpec(tmp, "AES");
 	}
 	public static IvParameterSpec getIV () {
