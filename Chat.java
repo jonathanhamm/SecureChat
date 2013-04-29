@@ -154,6 +154,18 @@ public class Chat {
 		System.err.println("    invokes Chat in client mode attempting to connect to ADDRESS on PORT.");
 	}
 	
+	/*
+	 * Function called by program at initialization if it is the client. This 
+	 * performs the Diffie-Hellman key exchange for setting up a common, 
+	 * secret AES key and IV with its server. 
+	 * 
+	 * @param c		This is the socket used for communication used by the client. 
+	 * 
+	 * @return		Returns a 32-byte byte buffer that is the result of the Diffie-
+	 * 				Hellman key exchange. The first 16 bytes are the AES key, the 
+	 * 				2nd 16 bytes are the IV. 
+	 */
+
 	private static byte[] getSharedClient (Socket c) {
 		int size;
 		byte[] size_b = new byte[4];
@@ -209,6 +221,19 @@ public class Chat {
 		return null;
 	}
 	
+	
+	/*
+	 * Function called by program at initialization if it is a server. This 
+	 * performs the Diffie-Hellman key exchange for setting up a common, 
+	 * secret AES key and IV with its client. 
+	 * 
+	 * @param s		This is the server socket used by the server. 
+	 * @param c		This is the socket used for communication used by the server. 
+	 * 
+	 * @return		Returns a 32-byte byte buffer that is the result of the Diffie-
+	 * 				Hellman key exchange. The first 16 bytes are the AES key, the 
+	 * 				2nd 16 bytes are the IV. 
+	 */
 	private static byte[] getSharedServer (ServerSocket s, Socket c) {
 		int size;
 		byte[] size_b = new byte[4];
@@ -270,6 +295,12 @@ public class Chat {
 	public static byte getMode () {
 		return mode;
 	}
+	
+	/*
+	 * Returns the AES key by copying the first 16
+	 * bytes of "shared" into a new byte buffer and
+	 * returning it. 
+	 */
 	public static SecretKeySpec getAESKey () {
 		byte[] tmp = new byte[16];
 		
@@ -277,6 +308,12 @@ public class Chat {
 			tmp[i] = shared[i];
 		return new SecretKeySpec(tmp, "AES");
 	}
+	
+	/*
+	 * Returns the IV by copying the last 16 bytes
+	 * of "shared" into a new byte buffer and 
+	 * returning it. 
+	 */
 	public static IvParameterSpec getIV () {
 		byte[] tmp = new byte[16];
 		
@@ -284,13 +321,25 @@ public class Chat {
 			tmp[i] = shared[16 + i];
 		return new IvParameterSpec(tmp);
 	}
+	
+	/*
+	 * Converts a 4 byte integer to a 4-byte buffer. 
+	 */
 	public static byte[] iToByteArray (int i) {
 		return ByteBuffer.allocate(4).putInt(i).array();
 	}
+	
+	/*
+	 * Converts a 4-byte buffer to a 4-byte integer. 
+	 */
 	public static int byteArrayToI (byte[] array) {
 	    return   array[3] & 0xFF | (array[2] & 0xFF) << 8 |
         		(array[1] & 0xFF) << 16 | (array[0] & 0xFF) << 24;
 	}
+	
+	/*
+	 * Prints a byte array in hex. 
+	 */
 	public static void printByteArray (byte[] array) {
 		for (int i = 0; i < array.length; i++)
 			System.out.printf("0x%02x,", array[i]);
@@ -318,7 +367,21 @@ public class Chat {
 	private static X509EncodedKeySpec x509spec;
 }
 
+/*
+ * The sender's Class/thread. 
+ */
 class ChatSender implements Runnable {
+	
+	/* 
+	 * Sender's constructor: 
+	 * Instantiates a cipher using cipher block chaining and 
+	 * PKCS5Padding padding. It obtains the AES key and IV from 
+	 * the Chat class. 
+	 * 
+	 * @param	screen	The "screen" or terminal buffer this accepts
+	 * 					input from. 
+	 * @param	conn	The output stream this writes to. 
+	 */
 	public ChatSender(InputStream screen, OutputStream conn) {
 		this.screen = new Scanner(screen);
 		this.conn = new PrintStream(conn);
@@ -335,6 +398,11 @@ class ChatSender implements Runnable {
 			e.printStackTrace();
 		}
 	}
+	
+	/*
+	 * Actual thread that sender runs in. Thread blocks until it 
+	 * receives keyboard input. A send is triggered by a newline. 
+	 */
 	public void run() {
 		byte[] buffer = new byte[16];
 		byte[] encrypted = new byte[16];
@@ -360,7 +428,21 @@ class ChatSender implements Runnable {
 	private Cipher cipher;
 }
 
+/*
+ * The Receiver's Class/thread. 
+ */
 class ChatReceiver implements Runnable {
+	
+	/* 
+	 * Receiver's constructor: 
+	 * Instantiates a cipher using cipher block chaining and 
+	 * PKCS5Padding padding. It obtains the AES key and IV from 
+	 * the Chat class. 
+	 * 
+	 * @param	conn	The connection stream this reads from. 
+	 * @param	screen	The terminal buffer this prints its 
+	 * 					received data to.    
+	 */
 	public ChatReceiver(InputStream conn, OutputStream screen) {
 		this.conn = conn;
 		this.screen = screen;
@@ -377,6 +459,12 @@ class ChatReceiver implements Runnable {
 			e.printStackTrace();
 		}
 	}
+	
+	/*
+	 * Actual thread that sender runs in. Thread blocks until it 
+	 * receives input from sender. It then processes input and writes
+	 * it to the screen. 
+	 */
 	public void run() {
 		int size = 0;
 		byte[] b;
@@ -405,7 +493,7 @@ class ChatReceiver implements Runnable {
 			try {
 				if (decrypted != null)
 					screen.write(decrypted, 0, size);
-				System.out.println();
+				screen.write('\n');
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
