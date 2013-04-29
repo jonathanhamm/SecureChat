@@ -275,13 +275,15 @@ public class Chat {
 		
 		for (int i = 0; i < 16; i++)
 			tmp[i] = shared[i];
+		printByteArray(tmp);
+
 		return new SecretKeySpec(tmp, "AES");
 	}
 	public static IvParameterSpec getIV () {
 		byte[] tmp = new byte[16];
 		
 		for (int i = 0; i < 16; i++)
-			tmp[i] = shared[i];
+			tmp[i] = shared[16 + i];
 		return new IvParameterSpec(tmp);
 	}
 	public static byte[] iToByteArray (int i) {
