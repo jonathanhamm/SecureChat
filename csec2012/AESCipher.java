@@ -57,6 +57,17 @@ public class AESCipher extends CipherSpi {
     protected int engineGetBlockSize() {
     	return 16; // This is constant for AES.
     }
+    
+    /*
+     * Gets the total output size for an output buffer, after 
+     * taking into account the input length and the total number 
+     * of bytes currently in the Cipher's buffer. 
+     * 
+     * @param	inputLen	The length of the current input.
+     * 
+     * @return				Returns the number of bytes needed
+     * 						for the output buffer.
+     */
     protected int engineGetOutputSize(int inputLen) {
 	/**
 	 * Implement me.
@@ -110,6 +121,18 @@ public class AESCipher extends CipherSpi {
     		System.err.println("Internal Error: " + e);
     	}
     }
+    
+    /*
+     * Initializes the Cipher engine with the appropriate values before it 
+     * processes data. This includes its mode of operation, its key, its
+     * algorithm parameters, and a source of randomness (in case no IV is 
+     * specified). 
+     *
+     * @param	opmode	The mode of operation for this Cipher (ie: encrypt/decrypt). 
+     * @param	key		The key used by this Cipher.
+     * @param	params	The algorithm parameters needed for this Cipher's algorithm. 
+     * @param 	random	A source of randomness if no IV is specified. 
+     */
     protected void engineInit(int opmode, Key key, AlgorithmParameterSpec params, SecureRandom random)
       throws InvalidKeyException, InvalidAlgorithmParameterException {
 	/**
@@ -132,11 +155,19 @@ public class AESCipher extends CipherSpi {
     	}
 
     }
+    
+    /*
+     * Gets the size in bytes needed for allocating an output buffer. 
+     * 
+     * @param	inputLen	The number of bytes to be processed. 
+     * 
+     * @return				Returns the number of bytes that the ouput
+     * 						buffer will need to allocate. 
+     */
     private int allocateSize(int inputLen) {
 	/**
 	 * Implement me.
 	 */
-    	
     	return (inputLen % engineGetBlockSize() == 0) ? inputLen+engineGetBlockSize() : 
     			inputLen + (engineGetBlockSize() - (inputLen % engineGetBlockSize()));
     }
@@ -151,6 +182,24 @@ public class AESCipher extends CipherSpi {
     	
     	return Arrays.copyOf(output, size);
     }
+    
+    /*
+     * This loads the Cipher buffer with data from the input buffer. If the Cipher
+     * buffer is filled up, it is processed and sent to the output buffer. Then 
+     * the Cipher buffer is cleared for more data to be added to it. This process
+     * repeats until all the input bytes have either been processed or added to the 
+     * Cipher buffer. 
+     * 
+     * @param	input			The input bye buffer to be processed by this method. 
+     * @param	inputOffset		The offset index in this buffer to begin processing at.
+     * @param	inputLen		The length (in bytes) of the input buffer. 
+     * @param	output			The buffer to write the output (or processed bytes) of this
+     * 							function to. 
+     * @param	outputOffset	The offset in the output buffer to begin writing output to. 
+     * 
+     * @return					Returns the number of bytes processed. 
+     */
+
     protected int engineUpdate(byte[] input, int inputOffset, int inputLen, byte[] output, int outputOffset)
       throws ShortBufferException {
 	/**
@@ -211,6 +260,22 @@ public class AESCipher extends CipherSpi {
     		return null;
     	}
     }
+    
+    /*
+     * This finalizes the encryption or decrypting by processing whatever is left from
+     * the input buffer, and applying the appropriate padding. This function can handle 
+     * cipher encryption and decryption for both PKCS5Padding and NoPadding, and CBC and
+     * ECB. 
+     * 
+     * @param	input			The input bye buffer to be processed by this method. 
+     * @param	inputOffset		The offset index in this buffer to begin processing at.
+     * @param	inputLen		The length (in bytes) of the input buffer. 
+     * @param	output			The buffer to write the output (or processed bytes) of this
+     * 							function to. 
+     * @param	outputOffset	The offset in the output buffer to begin writing output to. 
+     * 
+     * @return					Returns the number of bytes processed. 
+     */
     protected int engineDoFinal(byte[] input, int inputOffset, int inputLen, byte[] output, int outputOffset)
       throws ShortBufferException, IllegalBlockSizeException, BadPaddingException {
 	/**
@@ -267,6 +332,8 @@ public class AESCipher extends CipherSpi {
 		buffered = 0;
     	return outputwritten;
     }
+    
+    /* prints a byte array */
 	public static void printByteArray (byte[] array) {
 		for (int i = 0; i < array.length; i++)
 			System.out.printf("0x%02x,", array[i]);
